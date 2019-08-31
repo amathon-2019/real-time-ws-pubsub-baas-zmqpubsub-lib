@@ -1,9 +1,8 @@
-import aioredis
 import asyncio
 import time
-from typing import Optional, List
+from typing import Optional
 
-import aiozmq
+import aioredis
 
 from .redis_conn import RedisContext
 
@@ -12,6 +11,7 @@ class Connection:
     REDIS_HOSTS_KEY = 'zmq_host'
     my_ip = None
     redis: Optional[RedisContext] = None
+    redis_sub: Optional[RedisContext] = None
     SERVER_SUB_PORT = 10021
     CLIENT_PUB_PORT = 10022
     ZMQ_PUB = 1
@@ -26,6 +26,24 @@ class Connection:
 
     async def set_redis(self):
         self.redis = RedisContext(self.redis_uri, loop=self.loop)
+        self.redis_sub = RedisContext(self.redis_uri, loop=self.loop)
+
+    async def redis_publish(self, channel, msg):
+        async with self.redis as conn:
+            # print(f'redis publish {msg}')
+            try:
+                await conn.publish_json(channel, msg)
+            except aioredis.errors.ConnectionForcedCloseError:
+                pass
+
+    async def redis_receive_iter(self, channel_name):
+        async with self.redis_sub as conn:
+            channel: aioredis.pubsub.Channel
+            channel, *_ = await conn.subscribe(channel_name)
+            while await channel.wait_message():
+                msg = await channel.get_json()
+                # print(f'redis receive: {msg}')
+                yield msg
 
     async def update_status(self):
         async with self.redis as conn:

@@ -1,9 +1,8 @@
-import asyncio
 import random
-import time
-from typing import List, Optional
+from typing import Optional
 
 import aiozmq
+
 from .connection import Connection
 from .event import Event
 
@@ -17,12 +16,12 @@ class PubSubClient(Connection):
         instance = cls(redis_uri, loop=loop)
         await instance.set_redis()
         instance.closed = False
-        publisher_ip = await instance.get_publisher_ip()
-        print(f'connect... {publisher_ip}')
+        # print(f'connect...')
         instance.stream = await aiozmq.stream.create_zmq_stream(
             zmq_type=instance.ZMQ_SUB,
-            connect=f'tcp://{publisher_ip}:{instance.CLIENT_PUB_PORT}'
+            connect=f'tcp://127.0.0.1:{instance.CLIENT_PUB_PORT}'
         )
+
         return instance
 
     async def get_publisher_ip(self):
@@ -34,8 +33,11 @@ class PubSubClient(Connection):
         return self.publisher_ip
 
     def subscribe(self, channel: str):
-        self.stream.transport.subscribe(channel.encode()+b'\0')
+        if channel == '*':
+            self.stream.transport.subscribe(b'')
+        else:
+            self.stream.transport.subscribe(channel.encode() + b'\0')
 
     async def read_iter(self):
         while not self.closed:
-            yield Event.deserialize(await self.stream.read())
+            yield Event.from_bytes(await self.stream.read())

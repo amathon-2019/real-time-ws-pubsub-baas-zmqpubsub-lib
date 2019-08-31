@@ -1,17 +1,17 @@
 import asyncio
-import time
 from typing import Optional, List
 
 import aiozmq
 
-from .get_my_ip import get_my_ip
 from .connection import Connection
 from .event import Event
+from .get_my_ip import get_my_ip
 
 
 class PubSubServer(Connection):
     server_stream: Optional[aiozmq.ZmqStream] = None
     client_stream: Optional[aiozmq.ZmqStream] = None
+    REDIS_SUB_KEY = 'zmq_sub'
 
     def __init__(self, redis_uri, loop=None):
         super(self.__class__, self).__init__(redis_uri, loop)
@@ -57,28 +57,16 @@ class PubSubServer(Connection):
         jobs = [self.connect_server_sub(ip) for ip in (await self.get_all_hosts_iter())]
         await asyncio.gather(*jobs)
 
-    async def redirect_event_forever(self, sub_stream: aiozmq.ZmqStream):
-        while not self.closed:
-            event = await sub_stream.read()
-            await self.client_stream.write(event)
+    async def redirect_event_forever(self):
+        async for msg in self.redis_receive_iter(self.REDIS_SUB_KEY):
+            event = Event.from_str(msg)
+            if self.client_stream:
+                self.client_stream.write(event.to_bytes_list())
 
     async def publish(self, channel: str, header: str, body: dict):
         event = Event(channel, header, body)
-        msg = event.serialize()
-
-        def send_servers():
-            if self.server_stream:
-                self.server_stream.write(msg)
-
-        def send_clients():
-            if self.client_stream:
-                print(f'send... {event}')
-                self.client_stream.write(msg)
-
-        send_servers()
-        send_clients()
+        await self.redis_publish(self.REDIS_SUB_KEY, event.to_str_list())
 
     async def run_forever(self):
-        tasks = [self.redirect_event_forever(stream) for stream in self.sub_streams]
-        tasks.append(self.update_forever())
+        tasks = [self.redirect_event_forever(), self.update_forever()]
         await asyncio.gather(*tasks)

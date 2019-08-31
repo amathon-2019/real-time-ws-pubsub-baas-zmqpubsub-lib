@@ -1,11 +1,4 @@
 import aioredis
-import asyncio
-import time
-from typing import Optional, List
-
-import aiozmq
-
-from .get_my_ip import get_my_ip
 
 
 class RedisContext:
