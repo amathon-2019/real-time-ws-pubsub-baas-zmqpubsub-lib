@@ -69,7 +69,7 @@ class Connection:
     async def get_channel_client_cnt(self, channel_name):
         key = '{}:client_cnt'.format(channel_name)
         async with self.redis() as conn:
-            value = conn.get(key)
+            value = await conn.get(key)
 
         return int(value) if value else 0
 
