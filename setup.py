@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='zmq_pubsub',
-    version='0.0.1',
+    version='0.0.2',
     packages=['zmq_pubsub'],
     install_requires=[
         'aiohttp==3.5.4',
