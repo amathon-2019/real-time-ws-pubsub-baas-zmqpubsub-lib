@@ -1,5 +1,6 @@
 import asyncio
 import time
+import uuid
 from typing import Optional, List
 
 import aiozmq
@@ -67,11 +68,11 @@ class PubSubServer(Connection):
     async def publish(self, channel: str, header: str, body: dict):
         event = Event(channel, header, body)
         await self.redis_publish(self.REDIS_SUB_KEY, event.to_str_list())
-        self.loop.create_task(self.increase_pub_cnt())
+        self.loop.create_task(self.increase_pub_cnt(channel))
 
-    async def increase_pub_cnt(self):
-        async with self.redis as conn:
-            await conn.hset('pub_cnt', str(int(time.time())), '')
+    async def increase_pub_cnt(self, channel: str):
+        async with self.redis() as conn:
+            await conn.hset('{}:pub_cnt'.format(channel), f'{time.time()} {uuid.uuid4()}', '')
 
     async def run_forever(self):
         tasks = [self.redirect_event_forever(), self.update_forever()]

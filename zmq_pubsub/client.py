@@ -17,7 +17,7 @@ class PubSubClient(Connection):
     @classmethod
     async def create(cls, redis_uri, *, loop=None):
         instance = cls(redis_uri, loop=loop)
-        await instance.set_redis()
+        # await instance.set_redis()
         instance.closed = False
         # print(f'connect...')
         instance.stream = await aiozmq.stream.create_zmq_stream(
@@ -47,7 +47,7 @@ class PubSubClient(Connection):
             yield Event.from_bytes(await self.stream.read())
 
     async def _add_client_cnt(self, n):
-        async with self.redis as conn:
+        async with self.redis() as conn:
             async with aioredis_lock.RedisLock(conn, 'lock:{}:client_cnt'.format(self.channel_name)):
                 key = '{}:client_cnt'.format(self.channel_name)
                 value = await conn.get(key)
