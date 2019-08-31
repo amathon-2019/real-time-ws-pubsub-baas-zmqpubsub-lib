@@ -38,6 +38,6 @@ class PubSubClient(Connection):
         else:
             self.stream.transport.subscribe(channel.encode() + b'\0')
 
-    async def read_iter(self) -> AsyncGenerator[Event, None, None]:
+    async def read_iter(self) -> AsyncGenerator[Event, None]:
         while not self.closed:
             yield Event.from_bytes(await self.stream.read())
