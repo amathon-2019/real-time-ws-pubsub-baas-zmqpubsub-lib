@@ -33,8 +33,8 @@ class PubSubClient(Connection):
 
         return self.publisher_ip
 
-    def subscribe(self, channel: bytes):
-        self.stream.transport.subscribe(channel)
+    def subscribe(self, channel: str):
+        self.stream.transport.subscribe(channel.encode())
 
     async def read_iter(self):
         while not self.closed:
