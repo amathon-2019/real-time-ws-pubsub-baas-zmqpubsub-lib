@@ -1,5 +1,5 @@
 import random
-from typing import Optional
+from typing import Optional, AsyncGenerator
 
 import aiozmq
 
@@ -38,6 +38,6 @@ class PubSubClient(Connection):
         else:
             self.stream.transport.subscribe(channel.encode() + b'\0')
 
-    async def read_iter(self):
+    async def read_iter(self) -> AsyncGenerator[Event, None, None]:
         while not self.closed:
             yield Event.from_bytes(await self.stream.read())
