@@ -2,6 +2,7 @@ import random
 from typing import Optional, AsyncGenerator
 
 import aiozmq
+import aioredis_lock
 
 from .connection import Connection
 from .event import Event
@@ -10,6 +11,8 @@ from .event import Event
 class PubSubClient(Connection):
     stream: Optional[aiozmq.ZmqStream] = None
     publisher_ip = None
+    channel_name = ''
+    is_increased = False
 
     @classmethod
     async def create(cls, redis_uri, *, loop=None):
@@ -33,6 +36,7 @@ class PubSubClient(Connection):
         return self.publisher_ip
 
     def subscribe(self, channel: str):
+        self.channel_name = channel
         if channel == '*':
             self.stream.transport.subscribe(b'')
         else:
@@ -41,3 +45,21 @@ class PubSubClient(Connection):
     async def read_iter(self) -> AsyncGenerator[Event, None]:
         while not self.closed:
             yield Event.from_bytes(await self.stream.read())
+
+    async def _add_client_cnt(self, n):
+        async with self.redis as conn:
+            async with aioredis_lock.RedisLock(conn, 'lock:{}:client_cnt'.format(self.channel_name)):
+                key = '{}:client_cnt'.format(self.channel_name)
+                value = await conn.get(key)
+                value = int(value) if value else 0
+                await conn.set(key, value + n)
+
+    async def increase_client_cnt(self):
+        if not self.is_increased:
+            await self._add_client_cnt(1)
+            self.is_increased = True
+
+    async def decrease_client_cnt(self):
+        if self.is_increased:
+            await self._add_client_cnt(-1)
+            self.is_increased = False
