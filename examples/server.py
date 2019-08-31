@@ -9,7 +9,7 @@ if __name__ == '__main__':
 
         while True:
             await asyncio.sleep(1)
-            await s.publish(Event('header', {'a': 1}))
+            await s.publish('topic', 'header', {'msg': 'hello'})
 
 
     asyncio.get_event_loop().run_until_complete(main())

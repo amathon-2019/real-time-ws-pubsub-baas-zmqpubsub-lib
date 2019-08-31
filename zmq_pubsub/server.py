@@ -62,7 +62,8 @@ class PubSubServer(Connection):
             event = await sub_stream.read()
             await self.client_stream.write(event)
 
-    async def publish(self, event: Event):
+    async def publish(self, channel: str, header: str, body: dict):
+        event = Event(channel, header, body)
         msg = event.serialize()
 
         def send_servers():
